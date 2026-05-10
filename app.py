@@ -3,10 +3,16 @@ import requests
 
 app = Flask(__name__)
 
+# -----------------------------------
 # VERIFY TOKEN
+# -----------------------------------
+
 VERIFY_TOKEN = "InsBiz7062"
 
+# -----------------------------------
 # PAGE ACCESS TOKEN
+# -----------------------------------
+
 PAGE_ACCESS_TOKEN = "EAA8F6lrFvUABRRptMYFGwlMxyyOVRLU01o80QnW6AxZB2SWM699TRqqN08us12GGb7A4bD9Uk6Q0If8uoUxThAIMT2b1UQ8hFGNmE8CcuUA90vyZBAqERrtzsfc4hqReNSZBTwzRZB40y1k1dRnMa55ZB9Pk7zbWd7QqTY72fv7zZBBJCeRUAPzz4rh8CEiSNF1PtbkgKS6iXPgvJsxUvaG6S7bFXeRZC5T7ZCUWTJP4UAlTZCtGi"
 
 
@@ -59,17 +65,33 @@ def verify():
 
 def send_dm(user_id, message):
 
-    url = f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}"
+    url = "https://graph.facebook.com/v19.0/me/messages"
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    params = {
+        "access_token": PAGE_ACCESS_TOKEN
+    }
 
     payload = {
-        "recipient": {"id": user_id},
+        "recipient": {
+            "id": user_id
+        },
         "message": {
             "text": message
         }
     }
 
-    response = requests.post(url, json=payload)
+    response = requests.post(
+        url,
+        headers=headers,
+        params=params,
+        json=payload
+    )
 
+    print("DM RESPONSE:")
     print(response.text)
 
 
@@ -82,40 +104,50 @@ def webhook():
 
     data = request.json
 
+    print("WEBHOOK DATA:")
     print(data)
 
-    try:
+    # CHECK INSTAGRAM EVENT
+    if data.get("object") == "instagram":
 
-        for entry in data['entry']:
+        try:
 
-            for change in entry['changes']:
+            for entry in data['entry']:
 
-                if change['field'] == 'comments':
+                for change in entry['changes']:
 
-                    comment = change['value']['text'].lower()
+                    # CHECK COMMENT EVENT
+                    if change['field'] == 'comments':
 
-                    user_id = change['value']['from']['id']
+                        comment = change['value']['text'].lower()
 
-                    media_id = change['value']['media']['id']
+                        user_id = change['value']['from']['id']
 
-                    print("COMMENT:", comment)
-                    print("MEDIA ID:", media_id)
+                        media_id = change['value']['media']['id']
 
-                    # CHECK IF THIS REEL/POST EXISTS
-                    if media_id in TRIGGERS:
+                        print("COMMENT:", comment)
+                        print("USER ID:", user_id)
+                        print("MEDIA ID:", media_id)
 
-                        trigger = TRIGGERS[media_id]
+                        # CHECK IF MEDIA ID EXISTS
+                        if media_id in TRIGGERS:
 
-                        # CHECK KEYWORD
-                        if trigger["keyword"] in comment:
+                            trigger = TRIGGERS[media_id]
 
-                            send_dm(
-                                user_id,
-                                trigger["message"]
-                            )
+                            # CHECK KEYWORD
+                            if trigger["keyword"] in comment:
 
-    except Exception as e:
-        print(e)
+                                print("TRIGGER MATCHED")
+
+                                send_dm(
+                                    user_id,
+                                    trigger["message"]
+                                )
+
+        except Exception as e:
+
+            print("ERROR:")
+            print(e)
 
     return "ok", 200
 
