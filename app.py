@@ -38,7 +38,7 @@ def verify():
 
 def send_dm(user_id, message):
 
-    url = "https://graph.facebook.com/v19.0/me/messages"
+    url = "https://graph.facebook.com/v25.0/me/messages"
 
     headers = {
         "Content-Type": "application/json"
