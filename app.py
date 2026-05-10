@@ -17,33 +17,6 @@ PAGE_ACCESS_TOKEN = "EAA8F6lrFvUABRRptMYFGwlMxyyOVRLU01o80QnW6AxZB2SWM699TRqqN08
 
 
 # -----------------------------------
-# REEL/POST AUTOMATION SETTINGS
-# -----------------------------------
-
-TRIGGERS = {
-
-    # REEL/POST 1
-    "17878276398591244": {
-        "keyword": "link",
-        "message": "Here is your website link:\nhttps://yourwebsite.com"
-    },
-
-    # REEL/POST 2
-    "17892345678999999": {
-        "keyword": "course",
-        "message": "Here is your course link:\nhttps://course.com"
-    },
-
-    # REEL/POST 3
-    "17892345678111111": {
-        "keyword": "preset",
-        "message": "Download preset here:\nhttps://preset.com"
-    }
-
-}
-
-
-# -----------------------------------
 # WEBHOOK VERIFICATION
 # -----------------------------------
 
@@ -107,7 +80,6 @@ def webhook():
     print("WEBHOOK DATA:")
     print(data)
 
-    # CHECK INSTAGRAM EVENT
     if data.get("object") == "instagram":
 
         try:
@@ -116,10 +88,9 @@ def webhook():
 
                 for change in entry['changes']:
 
-                    # CHECK COMMENT EVENT
                     if change['field'] == 'comments':
 
-                        comment = change['value']['text'].lower()
+                        comment = change['value']['text']
 
                         user_id = change['value']['from']['id']
 
@@ -129,20 +100,16 @@ def webhook():
                         print("USER ID:", user_id)
                         print("MEDIA ID:", media_id)
 
-                        # CHECK IF MEDIA ID EXISTS
-                        if media_id in TRIGGERS:
+                        # -----------------------------------
+                        # TEST DM
+                        # -----------------------------------
 
-                            trigger = TRIGGERS[media_id]
+                        print("SENDING TEST DM")
 
-                            # CHECK KEYWORD
-                            if trigger["keyword"] in comment:
-
-                                print("TRIGGER MATCHED")
-
-                                send_dm(
-                                    user_id,
-                                    trigger["message"]
-                                )
+                        send_dm(
+                            user_id,
+                            "Webhook working successfully!"
+                        )
 
         except Exception as e:
 
