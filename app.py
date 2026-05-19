@@ -2,7 +2,6 @@ from flask import Flask, request
 import requests
 import random
 import os
-import time
 
 app = Flask(__name__)
 
@@ -15,14 +14,14 @@ PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
 GRAPH_API_VERSION = "v25.0"
 
-# YOUR PAGE ID
+# FACEBOOK PAGE ID
 PAGE_ID = "108765280484412"
 
-# YOUR IG BUSINESS ID
+# YOUR INSTAGRAM BUSINESS ACCOUNT ID
 MY_IG_ID = "17841403368168872"
 
 # ===================================
-# TRIGGER SETTINGS
+# REEL / POST SETTINGS
 # ===================================
 
 TRIGGERS = {
@@ -33,15 +32,15 @@ TRIGGERS = {
 }
 
 # ===================================
-# PUBLIC COMMENT REPLIES
+# RANDOM PUBLIC REPLIES
 # ===================================
 
 COMMENT_REPLIES = [
     "Link sent 📩",
     "Check DM 👀",
-    "Done ✅"
+    "Done ✅",
+    "Sent in inbox ✨"
 ]
-
 
 # ===================================
 # HOME
@@ -91,6 +90,7 @@ def reply_to_comment(
     params = {
         "access_token":
         PAGE_ACCESS_TOKEN,
+
         "message":
         message
     }
@@ -100,74 +100,25 @@ def reply_to_comment(
         params=params
     )
 
-    print("\n===== COMMENT REPLY =====")
-    print(response.status_code)
-    print(response.text)
-
-
-# ===================================
-# PRIVATE REPLY TO COMMENT (DM)
-# ===================================
-
-def send_private_reply(
-    comment_id
-):
-
-    url = (
-        f"https://graph.facebook.com/"
-        f"{GRAPH_API_VERSION}/"
-        f"{MY_IG_ID}/messages"
+    print(
+        "\n===== COMMENT REPLY ====="
     )
 
-    headers = {
-        "Content-Type":
-        "application/json"
-    }
-
-    params = {
-        "access_token":
-        PAGE_ACCESS_TOKEN
-    }
-
-    payload = {
-        "recipient": {
-            "comment_id":
-            comment_id
-        },
-        "message": {
-            "text":
-            (
-                "Hey there! 😊\n\n"
-                "Thanks for your interest.\n"
-                "Tap below and I'll "
-                "send your link ✨"
-            )
-        }
-    }
-
-    response = requests.post(
-        url,
-        headers=headers,
-        params=params,
-        json=payload
+    print(
+        response.status_code
     )
 
-    print("\n===== PRIVATE REPLY =====")
-    print(response.status_code)
-    print(response.text)
-
-    try:
-        return response.json()
-    except:
-        return None
+    print(
+        response.text
+    )
 
 
 # ===================================
-# SEND BUTTON
+# SEND BUTTON DM
 # ===================================
 
-def send_button(
-    recipient_id
+def send_dm_button(
+    user_id
 ):
 
     url = (
@@ -189,19 +140,22 @@ def send_button(
     payload = {
         "recipient": {
             "id":
-            recipient_id
+            user_id
         },
         "message": {
             "text":
             "Tap button below 👇",
+
             "quick_replies": [
                 {
                     "content_type":
                     "text",
+
                     "title":
-                    "Send me the link 🔗",
+                    "Send Link 🔗",
+
                     "payload":
-                    "GET_LINK"
+                    "send link"
                 }
             ]
         }
@@ -214,9 +168,17 @@ def send_button(
         json=payload
     )
 
-    print("\n===== BUTTON DM =====")
-    print(response.status_code)
-    print(response.text)
+    print(
+        "\n===== BUTTON DM ====="
+    )
+
+    print(
+        response.status_code
+    )
+
+    print(
+        response.text
+    )
 
 
 # ===================================
@@ -249,6 +211,7 @@ def send_final_link(
             "id":
             user_id
         },
+
         "message": {
             "text":
             f"Here is your link 🚀\n{link}"
@@ -262,13 +225,21 @@ def send_final_link(
         json=payload
     )
 
-    print("\n===== FINAL LINK =====")
-    print(response.status_code)
-    print(response.text)
+    print(
+        "\n===== FINAL LINK ====="
+    )
+
+    print(
+        response.status_code
+    )
+
+    print(
+        response.text
+    )
 
 
 # ===================================
-# WEBHOOK
+# WEBHOOK RECEIVER
 # ===================================
 
 @app.route("/webhook", methods=["POST"])
@@ -276,16 +247,21 @@ def webhook():
 
     data = request.json
 
-    print("\n===== WEBHOOK =====")
+    print(
+        "\n===== WEBHOOK ====="
+    )
+
     print(data)
 
     try:
 
-        # ==========================
-        # COMMENT EVENTS
-        # ==========================
+        # ===================================
+        # INSTAGRAM EVENTS
+        # ===================================
 
-        if data.get("object") == "instagram":
+        if data.get(
+            "object"
+        ) == "instagram":
 
             for entry in data.get(
                 "entry", []
@@ -295,16 +271,19 @@ def webhook():
                     "changes", []
                 ):
 
-                    if (
-                        change.get("field")
-                        == "comments"
-                    ):
+                    field = change.get(
+                        "field"
+                    )
 
-                        value = (
-                            change.get(
-                                "value", {}
-                            )
-                        )
+                    value = change.get(
+                        "value", {}
+                    )
+
+                    # ===================================
+                    # COMMENT EVENT
+                    # ===================================
+
+                    if field == "comments":
 
                         comment = (
                             value.get(
@@ -351,7 +330,7 @@ def webhook():
                             media_id
                         )
 
-                        # prevent loop
+                        # STOP BOT LOOP
                         if (
                             str(user_id)
                             == MY_IG_ID
@@ -373,6 +352,7 @@ def webhook():
                                 trigger[
                                     "keyword"
                                 ]
+                                .strip()
                                 .lower()
                             )
 
@@ -381,7 +361,7 @@ def webhook():
                                 in comment
                             ):
 
-                                # 1 PUBLIC REPLY
+                                # PUBLIC REPLY
                                 random_reply = (
                                     random.choice(
                                         COMMENT_REPLIES
@@ -393,96 +373,71 @@ def webhook():
                                     random_reply
                                 )
 
-                                # 2 PRIVATE REPLY
-                                result = (
-                                    send_private_reply(
-                                        comment_id
-                                    )
-                                )
+                                # SEND BUTTON DM
+                                if user_id:
 
-                                # allow Meta to create thread
-                                time.sleep(2)
-
-                                # 3 SEND BUTTON
-                                if (
-                                    result
-                                    and
-                                    "recipient_id"
-                                    in result
-                                ):
-
-                                    send_button(
-                                        result[
-                                            "recipient_id"
-                                        ]
+                                    send_dm_button(
+                                        user_id
                                     )
 
-        # ==========================
-# INSTAGRAM DM EVENTS
-# ==========================
+                    # ===================================
+                    # MESSAGE EVENT
+                    # ===================================
 
-for entry in data.get("entry", []):
+                    elif field == "messages":
 
-    for change in entry.get(
-        "changes", []
-    ):
+                        sender_id = (
+                            value.get(
+                                "sender", {}
+                            )
+                            .get("id")
+                        )
 
-        if (
-            change.get("field")
-            == "messages"
-        ):
+                        message = (
+                            value.get(
+                                "message", {}
+                            )
+                        )
 
-            value = change.get(
-                "value", {}
-            )
+                        text = (
+                            message.get(
+                                "text", ""
+                            )
+                            .strip()
+                            .lower()
+                        )
 
-            sender_id = (
-                value.get(
-                    "sender", {}
-                ).get("id")
-            )
+                        print(
+                            "\n===== DM ====="
+                        )
 
-            message = value.get(
-                "message", {}
-            )
+                        print(
+                            "TEXT:",
+                            text
+                        )
 
-            text = (
-                message.get(
-                    "text", ""
-                )
-                .strip()
-                .lower()
-            )
+                        # USER CLICKED BUTTON
+                        # -> SEND LINK
+                        if text == "send link":
 
-            print(
-                "\n===== DM ====="
-            )
+                            send_final_link(
+                                sender_id,
+                                "https://yourwebsite.com"
+                            )
 
-            print(
-                "TEXT:",
-                text
-            )
-
-            # USER SENT:
-            # send link
-            if text == "send link":
-
-                send_final_link(
-                    sender_id,
-                    "https://yourwebsite.com"
-                )
     except Exception as e:
 
         print(
             "\n===== ERROR ====="
         )
+
         print(str(e))
 
     return "ok", 200
 
 
 # ===================================
-# RUN
+# RUN SERVER
 # ===================================
 
 if __name__ == "__main__":
