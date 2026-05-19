@@ -1,44 +1,33 @@
 from flask import Flask, request
 import requests
 import random
+import os
 
 app = Flask(__name__)
 
-# -----------------------------------
-# VERIFY TOKEN
-# -----------------------------------
+# ===================================
+# CONFIG
+# ===================================
 
-VERIFY_TOKEN = "InsBiz7062"
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
-# -----------------------------------
-# PAGE ACCESS TOKEN
-# -----------------------------------
+GRAPH_API_VERSION = "v25.0"
 
-PAGE_ACCESS_TOKEN = "IGAAkhtKou2fdBZAFowRmozeFBMd3BJckkwV1NkUXpILWFjN01Kbmk2LW9aeWJxcWFyV0lEQ2dKUlNUNG9EN181QVlVM1VpZAm5ra2RyRjZALc0tqT1R0RERJWnd3R3VqTUJZAM204ZA3FsZAWdTcUV6N2RIdUJXXy1QZATNJZA0hMX3dJTQZDZD"
-
-# -----------------------------------
-# REEL/POST SETTINGS
-# -----------------------------------
+# ===================================
+# POST / REEL SETTINGS
+# ===================================
 
 TRIGGERS = {
-
-    # REEL / POST ID
     "17878276398591244": {
-
-        # COMMENT TRIGGER WORD
         "keyword": "link",
-
-        # FINAL LINK
         "link": "https://yourwebsite.com"
-
     }
-
 }
 
-
-# -----------------------------------
+# ===================================
 # RANDOM COMMENT REPLIES
-# -----------------------------------
+# ===================================
 
 COMMENT_REPLIES = [
     "Check DM 👀",
@@ -48,49 +37,59 @@ COMMENT_REPLIES = [
     "Link sent in DM 🚀"
 ]
 
-
-# -----------------------------------
+# ===================================
 # WEBHOOK VERIFICATION
-# -----------------------------------
+# ===================================
 
-@app.route('/webhook', methods=['GET'])
+@app.route("/webhook", methods=["GET"])
 def verify():
 
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
     if token == VERIFY_TOKEN:
-        return challenge
+        return challenge, 200
 
-    return "verification failed"
+    return "verification failed", 403
 
 
-# -----------------------------------
+# ===================================
 # REPLY TO COMMENT
-# -----------------------------------
+# ===================================
 
 def reply_to_comment(comment_id, message):
 
-    url = f"https://graph.facebook.com/v19.0/{comment_id}/replies"
+    url = (
+        f"https://graph.facebook.com/"
+        f"{GRAPH_API_VERSION}/{comment_id}/replies"
+    )
 
     params = {
         "access_token": PAGE_ACCESS_TOKEN,
         "message": message
     }
 
-    response = requests.post(url, params=params)
+    try:
+        response = requests.post(url, params=params)
 
-    print("COMMENT REPLY:")
-    print(response.text)
+        print("\n===== COMMENT REPLY =====")
+        print(response.status_code)
+        print(response.text)
+
+    except Exception as e:
+        print("COMMENT REPLY ERROR:", e)
 
 
-# -----------------------------------
+# ===================================
 # SEND DM BUTTON
-# -----------------------------------
+# ===================================
 
 def send_dm_button(user_id):
 
-    url = "https://graph.facebook.com/v19.0/me/messages"
+    url = (
+        f"https://graph.facebook.com/"
+        f"{GRAPH_API_VERSION}/me/messages"
+    )
 
     headers = {
         "Content-Type": "application/json"
@@ -109,31 +108,40 @@ def send_dm_button(user_id):
             "quick_replies": [
                 {
                     "content_type": "text",
-                    "title": "Click Here",
+                    "title": "Get Link",
                     "payload": "GET_LINK"
                 }
             ]
         }
     }
 
-    response = requests.post(
-        url,
-        headers=headers,
-        params=params,
-        json=payload
-    )
+    try:
 
-    print("BUTTON DM:")
-    print(response.text)
+        response = requests.post(
+            url,
+            headers=headers,
+            params=params,
+            json=payload
+        )
+
+        print("\n===== BUTTON DM =====")
+        print(response.status_code)
+        print(response.text)
+
+    except Exception as e:
+        print("BUTTON DM ERROR:", e)
 
 
-# -----------------------------------
+# ===================================
 # SEND FINAL LINK
-# -----------------------------------
+# ===================================
 
 def send_final_link(user_id, link):
 
-    url = "https://graph.facebook.com/v19.0/me/messages"
+    url = (
+        f"https://graph.facebook.com/"
+        f"{GRAPH_API_VERSION}/me/messages"
+    )
 
     headers = {
         "Content-Type": "application/json"
@@ -152,111 +160,171 @@ def send_final_link(user_id, link):
         }
     }
 
-    response = requests.post(
-        url,
-        headers=headers,
-        params=params,
-        json=payload
-    )
+    try:
 
-    print("FINAL LINK:")
-    print(response.text)
+        response = requests.post(
+            url,
+            headers=headers,
+            params=params,
+            json=payload
+        )
+
+        print("\n===== FINAL LINK =====")
+        print(response.status_code)
+        print(response.text)
+
+    except Exception as e:
+        print("FINAL LINK ERROR:", e)
 
 
-# -----------------------------------
+# ===================================
 # WEBHOOK RECEIVER
-# -----------------------------------
+# ===================================
 
-@app.route('/webhook', methods=['POST'])
+@app.route("/webhook", methods=["POST"])
 def webhook():
 
     data = request.json
 
-    print("WEBHOOK:")
+    print("\n===== WEBHOOK =====")
     print(data)
 
     try:
 
-        # -----------------------------------
-        # COMMENT EVENTS
-        # -----------------------------------
+        # ==========================
+        # INSTAGRAM COMMENT EVENTS
+        # ==========================
 
         if data.get("object") == "instagram":
 
-            for entry in data['entry']:
+            for entry in data.get("entry", []):
 
-                for change in entry['changes']:
+                for change in entry.get("changes", []):
 
-                    if change['field'] == 'comments':
+                    if change.get("field") == "comments":
 
-                        comment = change['value']['text'].lower()
+                        value = change.get("value", {})
 
-                        user_id = change['value']['from']['id']
+                        comment = (
+                            value.get("text", "")
+                            .strip()
+                            .lower()
+                        )
 
-                        media_id = change['value']['media']['id']
+                        user_id = (
+                            value.get("from", {})
+                            .get("id")
+                        )
 
-                        comment_id = change['value']['id']
+                        media_id = (
+                            value.get("media", {})
+                            .get("id")
+                        )
 
-                        print("COMMENT:", comment)
+                        comment_id = value.get("id")
+
+                        print("\n===== COMMENT =====")
+                        print("TEXT:", comment)
+                        print("USER:", user_id)
+                        print("MEDIA:", media_id)
 
                         if media_id in TRIGGERS:
 
                             trigger = TRIGGERS[media_id]
 
-                            if trigger["keyword"] in comment:
+                            keyword = (
+                                trigger["keyword"]
+                                .strip()
+                                .lower()
+                            )
 
-                                # RANDOM COMMENT REPLY
-                                random_reply = random.choice(COMMENT_REPLIES)
+                            if keyword in comment:
 
+                                random_reply = random.choice(
+                                    COMMENT_REPLIES
+                                )
+
+                                # Reply publicly
                                 reply_to_comment(
                                     comment_id,
                                     random_reply
                                 )
 
-                                # SEND BUTTON DM
-                                send_dm_button(user_id)
+                                # Attempt DM
+                                if user_id:
+                                    send_dm_button(user_id)
 
-        # -----------------------------------
-        # BUTTON CLICK EVENTS
-        # -----------------------------------
+        # ==========================
+        # QUICK REPLY EVENTS
+        # ==========================
 
         if data.get("object") == "page":
 
-            for entry in data['entry']:
+            for entry in data.get("entry", []):
 
-                for messaging_event in entry['messaging']:
+                for messaging_event in entry.get(
+                    "messaging", []
+                ):
 
-                    sender_id = messaging_event['sender']['id']
+                    sender_id = (
+                        messaging_event.get(
+                            "sender", {}
+                        ).get("id")
+                    )
 
-                    # QUICK REPLY CLICK
-                    if (
-                        'message' in messaging_event
-                        and 'quick_reply' in messaging_event['message']
-                    ):
+                    message = (
+                        messaging_event.get(
+                            "message", {}
+                        )
+                    )
 
-                        payload = messaging_event['message']['quick_reply']['payload']
+                    quick_reply = (
+                        message.get(
+                            "quick_reply", {}
+                        )
+                    )
 
-                        if payload == "GET_LINK":
+                    payload = quick_reply.get(
+                        "payload"
+                    )
 
-                            # SEND FINAL LINK
-                            send_final_link(
-                                sender_id,
-                                "https://yourwebsite.com"
-                            )
+                    print("\n===== QUICK REPLY =====")
+                    print(payload)
+
+                    if payload == "GET_LINK":
+
+                        send_final_link(
+                            sender_id,
+                            "https://yourwebsite.com"
+                        )
 
     except Exception as e:
-
-        print("ERROR:")
+        print("\n===== ERROR =====")
         print(e)
-        
 
     return "ok", 200
-    print("WEBHOOK:")
-    print(data)
 
 
-# -----------------------------------
+# ===================================
+# HOME ROUTE
+# ===================================
+
+@app.route("/")
+def home():
+    return "Instagram Webhook Running"
+
+
+# ===================================
 # RUN SERVER
-# -----------------------------------
+# ===================================
 
-app.run(host="0.0.0.0", port=10000)
+if __name__ == "__main__":
+
+    port = int(
+        os.environ.get("PORT", 10000)
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
