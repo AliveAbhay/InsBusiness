@@ -14,8 +14,11 @@ PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
 GRAPH_API_VERSION = "v25.0"
 
-# YOUR FACEBOOK PAGE ID
-PAGE_ID = "853767931145807"
+# FACEBOOK PAGE ID
+PAGE_ID = "108765280484412"
+
+# YOUR INSTAGRAM BUSINESS ACCOUNT ID
+MY_IG_ID = "17841403368168872"
 
 # ===================================
 # POST / REEL SETTINGS
@@ -33,11 +36,10 @@ TRIGGERS = {
 # ===================================
 
 COMMENT_REPLIES = [
+    "Link sent 📩",
     "Check DM 👀",
-    "Sent in your DM 📩",
-    "Check your inbox ✨",
-    "Done ✅",
-    "Link sent in DM 🚀"
+    "Sent in your inbox ✨",
+    "Done ✅"
 ]
 
 # ===================================
@@ -46,7 +48,8 @@ COMMENT_REPLIES = [
 
 @app.route("/")
 def home():
-    return "Instagram Webhook Running"
+    return "Instagram Automation Running"
+
 
 # ===================================
 # TEST TOKEN
@@ -71,6 +74,7 @@ def test_token():
 
     return response.text
 
+
 # ===================================
 # WEBHOOK VERIFY
 # ===================================
@@ -86,26 +90,14 @@ def verify():
         "hub.challenge"
     )
 
-    print(
-        "TOKEN FROM META =",
-        token
-    )
-
-    print(
-        "VERIFY_TOKEN FROM RENDER =",
-        VERIFY_TOKEN
-    )
-
     if token == VERIFY_TOKEN:
         return challenge, 200
 
-    return (
-        "verification failed",
-        403
-    )
+    return "verification failed", 403
+
 
 # ===================================
-# COMMENT REPLY
+# PUBLIC COMMENT REPLY
 # ===================================
 
 def reply_to_comment(
@@ -122,7 +114,8 @@ def reply_to_comment(
     params = {
         "access_token":
         PAGE_ACCESS_TOKEN,
-        "message": message
+        "message":
+        message
     }
 
     response = requests.post(
@@ -130,11 +123,10 @@ def reply_to_comment(
         params=params
     )
 
-    print(
-        "\n===== COMMENT REPLY ====="
-    )
+    print("\n===== COMMENT REPLY =====")
     print(response.status_code)
     print(response.text)
+
 
 # ===================================
 # SEND DM BUTTON
@@ -166,13 +158,13 @@ def send_dm_button(
         },
         "message": {
             "text":
-            "Here is your link 👇",
+            "Tap below to get the link 👇",
             "quick_replies": [
                 {
                     "content_type":
                     "text",
                     "title":
-                    "Get Link",
+                    "Send Link 🔗",
                     "payload":
                     "GET_LINK"
                 }
@@ -187,11 +179,10 @@ def send_dm_button(
         json=payload
     )
 
-    print(
-        "\n===== BUTTON DM ====="
-    )
+    print("\n===== BUTTON DM =====")
     print(response.status_code)
     print(response.text)
+
 
 # ===================================
 # SEND FINAL LINK
@@ -235,46 +226,37 @@ def send_final_link(
         json=payload
     )
 
-    print(
-        "\n===== FINAL LINK ====="
-    )
+    print("\n===== FINAL LINK =====")
     print(response.status_code)
     print(response.text)
+
 
 # ===================================
 # WEBHOOK RECEIVER
 # ===================================
 
-@app.route(
-    "/webhook",
-    methods=["POST"]
-)
+@app.route("/webhook", methods=["POST"])
 def webhook():
 
     data = request.json
 
-    print(
-        "\n===== WEBHOOK ====="
-    )
+    print("\n===== WEBHOOK =====")
     print(data)
 
     try:
 
-        # INSTAGRAM COMMENT EVENT
+        # ==========================
+        # INSTAGRAM COMMENT EVENTS
+        # ==========================
 
-        if (
-            data.get("object")
-            == "instagram"
-        ):
+        if data.get("object") == "instagram":
 
             for entry in data.get(
                 "entry", []
             ):
 
-                for change in (
-                    entry.get(
-                        "changes", []
-                    )
+                for change in entry.get(
+                    "changes", []
                 ):
 
                     if (
@@ -284,11 +266,9 @@ def webhook():
                         == "comments"
                     ):
 
-                        value = (
-                            change.get(
-                                "value",
-                                {}
-                            )
+                        value = change.get(
+                            "value",
+                            {}
                         )
 
                         comment = (
@@ -323,21 +303,25 @@ def webhook():
                         print(
                             "\n===== COMMENT ====="
                         )
-
                         print(
                             "TEXT:",
                             comment
                         )
-
                         print(
                             "USER:",
                             user_id
                         )
-
                         print(
                             "MEDIA:",
                             media_id
                         )
+
+                        # STOP SELF LOOP
+                        if (
+                            str(user_id)
+                            == MY_IG_ID
+                        ):
+                            continue
 
                         if (
                             media_id
@@ -354,7 +338,6 @@ def webhook():
                                 trigger[
                                     "keyword"
                                 ]
-                                .strip()
                                 .lower()
                             )
 
@@ -363,6 +346,7 @@ def webhook():
                                 in comment
                             ):
 
+                                # PUBLIC REPLY
                                 random_reply = (
                                     random.choice(
                                         COMMENT_REPLIES
@@ -374,28 +358,26 @@ def webhook():
                                     random_reply
                                 )
 
+                                # AUTO SEND BUTTON
                                 if user_id:
 
                                     send_dm_button(
                                         user_id
                                     )
 
-        # QUICK REPLY
+        # ==========================
+        # BUTTON CLICK EVENT
+        # ==========================
 
-        if (
-            data.get("object")
-            == "page"
-        ):
+        if data.get("object") == "page":
 
             for entry in data.get(
                 "entry", []
             ):
 
-                for event in (
-                    entry.get(
-                        "messaging",
-                        []
-                    )
+                for event in entry.get(
+                    "messaging",
+                    []
                 ):
 
                     sender_id = (
@@ -421,7 +403,7 @@ def webhook():
                     )
 
                     print(
-                        "\n===== QUICK REPLY ====="
+                        "\n===== BUTTON CLICK ====="
                     )
                     print(payload)
 
@@ -437,15 +419,14 @@ def webhook():
 
     except Exception as e:
 
-        print(
-            "\n===== ERROR ====="
-        )
+        print("\n===== ERROR =====")
         print(str(e))
 
     return "ok", 200
 
+
 # ===================================
-# RUN
+# RUN SERVER
 # ===================================
 
 if __name__ == "__main__":
