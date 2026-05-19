@@ -47,11 +47,13 @@ def verify():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
+    print("TOKEN FROM META =", token)
+    print("VERIFY_TOKEN FROM RENDER =", VERIFY_TOKEN)
+
     if token == VERIFY_TOKEN:
         return challenge, 200
 
     return "verification failed", 403
-
 
 # ===================================
 # REPLY TO COMMENT
