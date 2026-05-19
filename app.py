@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # ===================================
-# ENV VARIABLES
+# CONFIG
 # ===================================
 
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
@@ -14,8 +14,11 @@ PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
 GRAPH_API_VERSION = "v25.0"
 
+# YOUR FACEBOOK PAGE ID
+PAGE_ID = "853767931145807"
+
 # ===================================
-# SETTINGS
+# POST / REEL SETTINGS
 # ===================================
 
 TRIGGERS = {
@@ -24,6 +27,10 @@ TRIGGERS = {
         "link": "https://yourwebsite.com"
     }
 }
+
+# ===================================
+# RANDOM COMMENT REPLIES
+# ===================================
 
 COMMENT_REPLIES = [
     "Check DM 👀",
@@ -42,31 +49,16 @@ def home():
     return "Instagram Webhook Running"
 
 # ===================================
-# DEBUG TOKEN
-# ===================================
-
-@app.route("/debug-token")
-def debug_token():
-
-    if PAGE_ACCESS_TOKEN:
-        return {
-            "exists": True,
-            "starts_with": PAGE_ACCESS_TOKEN[:10],
-            "length": len(PAGE_ACCESS_TOKEN)
-        }
-
-    return {
-        "exists": False
-    }
-
-# ===================================
 # TEST TOKEN
 # ===================================
 
 @app.route("/test-token")
 def test_token():
 
-    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/me/accounts"
+    url = (
+        f"https://graph.facebook.com/"
+        f"{GRAPH_API_VERSION}/me"
+    )
 
     params = {
         "access_token": PAGE_ACCESS_TOKEN
@@ -86,22 +78,40 @@ def test_token():
 @app.route("/webhook", methods=["GET"])
 def verify():
 
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
+    token = request.args.get(
+        "hub.verify_token"
+    )
 
-    print("TOKEN FROM META:", token)
-    print("VERIFY_TOKEN:", VERIFY_TOKEN)
+    challenge = request.args.get(
+        "hub.challenge"
+    )
+
+    print(
+        "TOKEN FROM META =",
+        token
+    )
+
+    print(
+        "VERIFY_TOKEN FROM RENDER =",
+        VERIFY_TOKEN
+    )
 
     if token == VERIFY_TOKEN:
         return challenge, 200
 
-    return "verification failed", 403
+    return (
+        "verification failed",
+        403
+    )
 
 # ===================================
 # COMMENT REPLY
 # ===================================
 
-def reply_to_comment(comment_id, message):
+def reply_to_comment(
+    comment_id,
+    message
+):
 
     url = (
         f"https://graph.facebook.com/"
@@ -110,7 +120,8 @@ def reply_to_comment(comment_id, message):
     )
 
     params = {
-        "access_token": PAGE_ACCESS_TOKEN,
+        "access_token":
+        PAGE_ACCESS_TOKEN,
         "message": message
     }
 
@@ -119,27 +130,34 @@ def reply_to_comment(comment_id, message):
         params=params
     )
 
-    print("===== COMMENT REPLY =====")
+    print(
+        "\n===== COMMENT REPLY ====="
+    )
     print(response.status_code)
     print(response.text)
 
 # ===================================
-# SEND DM
+# SEND DM BUTTON
 # ===================================
 
-def send_dm_button(user_id):
+def send_dm_button(
+    user_id
+):
 
     url = (
         f"https://graph.facebook.com/"
-        f"{GRAPH_API_VERSION}/me/messages"
+        f"{GRAPH_API_VERSION}/"
+        f"{PAGE_ID}/messages"
     )
 
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type":
+        "application/json"
     }
 
     params = {
-        "access_token": PAGE_ACCESS_TOKEN
+        "access_token":
+        PAGE_ACCESS_TOKEN
     }
 
     payload = {
@@ -147,12 +165,16 @@ def send_dm_button(user_id):
             "id": user_id
         },
         "message": {
-            "text": "Here is your link 👇",
+            "text":
+            "Here is your link 👇",
             "quick_replies": [
                 {
-                    "content_type": "text",
-                    "title": "Click Here",
-                    "payload": "GET_LINK"
+                    "content_type":
+                    "text",
+                    "title":
+                    "Get Link",
+                    "payload":
+                    "GET_LINK"
                 }
             ]
         }
@@ -165,27 +187,35 @@ def send_dm_button(user_id):
         json=payload
     )
 
-    print("===== BUTTON DM =====")
+    print(
+        "\n===== BUTTON DM ====="
+    )
     print(response.status_code)
     print(response.text)
 
 # ===================================
-# FINAL LINK
+# SEND FINAL LINK
 # ===================================
 
-def send_final_link(user_id, link):
+def send_final_link(
+    user_id,
+    link
+):
 
     url = (
         f"https://graph.facebook.com/"
-        f"{GRAPH_API_VERSION}/me/messages"
+        f"{GRAPH_API_VERSION}/"
+        f"{PAGE_ID}/messages"
     )
 
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type":
+        "application/json"
     }
 
     params = {
-        "access_token": PAGE_ACCESS_TOKEN
+        "access_token":
+        PAGE_ACCESS_TOKEN
     }
 
     payload = {
@@ -193,7 +223,8 @@ def send_final_link(user_id, link):
             "id": user_id
         },
         "message": {
-            "text": f"Here is your link 🚀\n{link}"
+            "text":
+            f"Here is your link 🚀\n{link}"
         }
     }
 
@@ -204,7 +235,9 @@ def send_final_link(user_id, link):
         json=payload
     )
 
-    print("===== FINAL LINK =====")
+    print(
+        "\n===== FINAL LINK ====="
+    )
     print(response.status_code)
     print(response.text)
 
@@ -212,58 +245,121 @@ def send_final_link(user_id, link):
 # WEBHOOK RECEIVER
 # ===================================
 
-@app.route("/webhook", methods=["POST"])
+@app.route(
+    "/webhook",
+    methods=["POST"]
+)
 def webhook():
 
     data = request.json
 
-    print("===== WEBHOOK =====")
+    print(
+        "\n===== WEBHOOK ====="
+    )
     print(data)
 
     try:
 
-        if data.get("object") == "instagram":
+        # INSTAGRAM COMMENT EVENT
 
-            for entry in data.get("entry", []):
+        if (
+            data.get("object")
+            == "instagram"
+        ):
 
-                for change in entry.get("changes", []):
+            for entry in data.get(
+                "entry", []
+            ):
 
-                    if change.get("field") == "comments":
+                for change in (
+                    entry.get(
+                        "changes", []
+                    )
+                ):
+
+                    if (
+                        change.get(
+                            "field"
+                        )
+                        == "comments"
+                    ):
+
+                        value = (
+                            change.get(
+                                "value",
+                                {}
+                            )
+                        )
 
                         comment = (
-                            change["value"]
-                            .get("text", "")
+                            value.get(
+                                "text",
+                                ""
+                            )
+                            .strip()
                             .lower()
                         )
 
                         user_id = (
-                            change["value"]
-                            ["from"]["id"]
+                            value.get(
+                                "from",
+                                {}
+                            )
+                            .get("id")
                         )
 
                         media_id = (
-                            change["value"]
-                            ["media"]["id"]
+                            value.get(
+                                "media",
+                                {}
+                            )
+                            .get("id")
                         )
 
                         comment_id = (
-                            change["value"]
-                            ["id"]
+                            value.get("id")
                         )
 
-                        print("===== COMMENT =====")
-                        print("TEXT:", comment)
-                        print("USER:", user_id)
-                        print("MEDIA:", media_id)
+                        print(
+                            "\n===== COMMENT ====="
+                        )
 
-                        if media_id in TRIGGERS:
+                        print(
+                            "TEXT:",
+                            comment
+                        )
+
+                        print(
+                            "USER:",
+                            user_id
+                        )
+
+                        print(
+                            "MEDIA:",
+                            media_id
+                        )
+
+                        if (
+                            media_id
+                            in TRIGGERS
+                        ):
 
                             trigger = (
-                                TRIGGERS[media_id]
+                                TRIGGERS[
+                                    media_id
+                                ]
+                            )
+
+                            keyword = (
+                                trigger[
+                                    "keyword"
+                                ]
+                                .strip()
+                                .lower()
                             )
 
                             if (
-                                trigger["keyword"]
+                                keyword
                                 in comment
                             ):
 
@@ -278,57 +374,78 @@ def webhook():
                                     random_reply
                                 )
 
-                                send_dm_button(
-                                    user_id
-                                )
+                                if user_id:
 
-        if data.get("object") == "page":
+                                    send_dm_button(
+                                        user_id
+                                    )
 
-            for entry in data.get("entry", []):
+        # QUICK REPLY
 
-                for messaging_event in (
+        if (
+            data.get("object")
+            == "page"
+        ):
+
+            for entry in data.get(
+                "entry", []
+            ):
+
+                for event in (
                     entry.get(
-                        "messaging", []
+                        "messaging",
+                        []
                     )
                 ):
 
                     sender_id = (
-                        messaging_event
-                        ["sender"]["id"]
+                        event.get(
+                            "sender",
+                            {}
+                        )
+                        .get("id")
                     )
 
+                    payload = (
+                        event.get(
+                            "message",
+                            {}
+                        )
+                        .get(
+                            "quick_reply",
+                            {}
+                        )
+                        .get(
+                            "payload"
+                        )
+                    )
+
+                    print(
+                        "\n===== QUICK REPLY ====="
+                    )
+                    print(payload)
+
                     if (
-                        "message"
-                        in messaging_event
-                        and
-                        "quick_reply"
-                        in messaging_event
-                        ["message"]
+                        payload
+                        == "GET_LINK"
                     ):
 
-                        payload = (
-                            messaging_event
-                            ["message"]
-                            ["quick_reply"]
-                            ["payload"]
+                        send_final_link(
+                            sender_id,
+                            "https://yourwebsite.com"
                         )
-
-                        if payload == "GET_LINK":
-
-                            send_final_link(
-                                sender_id,
-                                "https://yourwebsite.com"
-                            )
 
     except Exception as e:
 
-        print("===== ERROR =====")
+        print(
+            "\n===== ERROR ====="
+        )
         print(str(e))
 
     return "ok", 200
 
 # ===================================
-# RUN SERVER
+# RUN
 # ===================================
 
 if __name__ == "__main__":
