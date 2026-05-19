@@ -418,57 +418,59 @@ def webhook():
                                     )
 
         # ==========================
-        # BUTTON CLICK
-        # ==========================
+# INSTAGRAM DM EVENTS
+# ==========================
 
-        if data.get("object") == "page":
+for entry in data.get("entry", []):
 
-            for entry in data.get(
-                "entry", []
-            ):
+    for change in entry.get(
+        "changes", []
+    ):
 
-                for event in entry.get(
-                    "messaging",
-                    []
-                ):
+        if (
+            change.get("field")
+            == "messages"
+        ):
 
-                    sender_id = (
-                        event.get(
-                            "sender", {}
-                        )
-                        .get("id")
-                    )
+            value = change.get(
+                "value", {}
+            )
 
-                    payload = (
-                        event.get(
-                            "message",
-                            {}
-                        )
-                        .get(
-                            "quick_reply",
-                            {}
-                        )
-                        .get(
-                            "payload"
-                        )
-                    )
+            sender_id = (
+                value.get(
+                    "sender", {}
+                ).get("id")
+            )
 
-                    print(
-                        "\n===== BUTTON ====="
-                    )
+            message = value.get(
+                "message", {}
+            )
 
-                    print(payload)
+            text = (
+                message.get(
+                    "text", ""
+                )
+                .strip()
+                .lower()
+            )
 
-                    if (
-                        payload
-                        == "GET_LINK"
-                    ):
+            print(
+                "\n===== DM ====="
+            )
 
-                        send_final_link(
-                            sender_id,
-                            "https://yourwebsite.com"
-                        )
+            print(
+                "TEXT:",
+                text
+            )
 
+            # USER SENT:
+            # send link
+            if text == "send link":
+
+                send_final_link(
+                    sender_id,
+                    "https://yourwebsite.com"
+                )
     except Exception as e:
 
         print(
