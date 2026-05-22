@@ -1,0 +1,15 @@
+{
+  "17878276398591244": {
+    "keyword": "link",
+    "public_reply": "Link sent 📩 Check your DM",
+    "button_keyword": "send link",
+    "final_link": "https://course.com"
+  },
+
+  "17881111111111111": {
+    "keyword": "pdf",
+    "public_reply": "PDF sent 📩",
+    "button_keyword": "download pdf",
+    "final_link": "https://pdf.com"
+  }
+}
