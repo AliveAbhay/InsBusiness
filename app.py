@@ -2,69 +2,52 @@ from flask import Flask, request
 import requests
 import random
 import os
+import json
 
 app = Flask(__name__)
 
-# ===================================
+# ==================================
 # CONFIG
-# ===================================
+# ==================================
 
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
 GRAPH_API_VERSION = "v25.0"
 
-# FACEBOOK PAGE ID
-PAGE_ID = "108765280484412"
-
-# YOUR INSTAGRAM BUSINESS ACCOUNT ID
-MY_IG_ID = "17841403368168872"
-
-# ===================================
+# ==================================
 # REEL / POST SETTINGS
-# ===================================
+# ==================================
 
 TRIGGERS = {
     "17878276398591244": {
         "keyword": "link",
-        "link": "https://yourwebsite.com"
+        "public_reply": "Link sent 📩 Check your DM"
     }
 }
 
-# ===================================
+# ==================================
 # RANDOM PUBLIC REPLIES
-# ===================================
+# ==================================
 
 COMMENT_REPLIES = [
-    "Link sent 📩",
-    "Check DM 👀",
-    "Done ✅",
-    "Sent in inbox ✨"
+    "Link sent 📩 Check your DM",
+    "Check your inbox 📩",
+    "Sent in DM 🚀",
+    "Done ✅ Check DM"
 ]
 
-# ===================================
-# HOME
-# ===================================
-
-@app.route("/")
-def home():
-    return "Instagram Bot Running"
-
-
-# ===================================
-# WEBHOOK VERIFY
-# ===================================
+# ==================================
+# WEBHOOK VERIFICATION
+# ==================================
 
 @app.route("/webhook", methods=["GET"])
 def verify():
 
-    token = request.args.get(
-        "hub.verify_token"
-    )
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
 
-    challenge = request.args.get(
-        "hub.challenge"
-    )
+    print("VERIFY TOKEN FROM META:", token)
 
     if token == VERIFY_TOKEN:
         return challenge, 200
@@ -72,14 +55,11 @@ def verify():
     return "verification failed", 403
 
 
-# ===================================
-# PUBLIC COMMENT REPLY
-# ===================================
+# ==================================
+# REPLY TO COMMENT
+# ==================================
 
-def reply_to_comment(
-    comment_id,
-    message
-):
+def reply_to_comment(comment_id, message):
 
     url = (
         f"https://graph.facebook.com/"
@@ -88,223 +68,110 @@ def reply_to_comment(
     )
 
     params = {
-        "access_token":
-        PAGE_ACCESS_TOKEN,
-
-        "message":
-        message
+        "access_token": PAGE_ACCESS_TOKEN,
+        "message": message
     }
 
-    response = requests.post(
-        url,
-        params=params
-    )
+    try:
 
-    print(
-        "\n===== COMMENT REPLY ====="
-    )
+        response = requests.post(
+            url,
+            params=params
+        )
 
-    print(
-        response.status_code
-    )
+        print("\n===== COMMENT REPLY =====")
+        print(response.status_code)
+        print(response.text)
 
-    print(
-        response.text
-    )
+    except Exception as e:
+        print("COMMENT REPLY ERROR:", e)
 
 
-# ===================================
-# SEND BUTTON DM
-# ===================================
+# ==================================
+# LOG USER (OPTIONAL)
+# ==================================
 
-def send_dm_button(
-    user_id
-):
+def save_log(data):
 
-    url = (
-        f"https://graph.facebook.com/"
-        f"{GRAPH_API_VERSION}/"
-        f"{PAGE_ID}/messages"
-    )
+    try:
 
-    headers = {
-        "Content-Type":
-        "application/json"
-    }
+        with open(
+            "comment_logs.txt",
+            "a",
+            encoding="utf-8"
+        ) as f:
 
-    params = {
-        "access_token":
-        PAGE_ACCESS_TOKEN
-    }
+            f.write(
+                json.dumps(
+                    data,
+                    ensure_ascii=False
+                )
+                + "\n"
+            )
 
-    payload = {
-        "recipient": {
-            "id":
-            user_id
-        },
-        "message": {
-            "text":
-            "Tap button below 👇",
-
-            "quick_replies": [
-                {
-                    "content_type":
-                    "text",
-
-                    "title":
-                    "Send Link 🔗",
-
-                    "payload":
-                    "send link"
-                }
-            ]
-        }
-    }
-
-    response = requests.post(
-        url,
-        headers=headers,
-        params=params,
-        json=payload
-    )
-
-    print(
-        "\n===== BUTTON DM ====="
-    )
-
-    print(
-        response.status_code
-    )
-
-    print(
-        response.text
-    )
+    except Exception as e:
+        print("LOG ERROR:", e)
 
 
-# ===================================
-# SEND FINAL LINK
-# ===================================
-
-def send_final_link(
-    user_id,
-    link
-):
-
-    url = (
-        f"https://graph.facebook.com/"
-        f"{GRAPH_API_VERSION}/"
-        f"{PAGE_ID}/messages"
-    )
-
-    headers = {
-        "Content-Type":
-        "application/json"
-    }
-
-    params = {
-        "access_token":
-        PAGE_ACCESS_TOKEN
-    }
-
-    payload = {
-        "recipient": {
-            "id":
-            user_id
-        },
-
-        "message": {
-            "text":
-            f"Here is your link 🚀\n{link}"
-        }
-    }
-
-    response = requests.post(
-        url,
-        headers=headers,
-        params=params,
-        json=payload
-    )
-
-    print(
-        "\n===== FINAL LINK ====="
-    )
-
-    print(
-        response.status_code
-    )
-
-    print(
-        response.text
-    )
-
-
-# ===================================
+# ==================================
 # WEBHOOK RECEIVER
-# ===================================
+# ==================================
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
     data = request.json
 
-    print(
-        "\n===== WEBHOOK ====="
-    )
-
+    print("\n===== WEBHOOK =====")
     print(data)
 
     try:
 
-        # ===================================
-        # INSTAGRAM EVENTS
-        # ===================================
+        if data.get("object") == "instagram":
 
-        if data.get(
-            "object"
-        ) == "instagram":
-
-            for entry in data.get(
-                "entry", []
-            ):
+            for entry in data.get("entry", []):
 
                 for change in entry.get(
                     "changes", []
                 ):
 
-                    field = change.get(
-                        "field"
-                    )
+                    field = change.get("field")
 
-                    value = change.get(
-                        "value", {}
-                    )
-
-                    # ===================================
-                    # COMMENT EVENT
-                    # ===================================
+                    # =====================
+                    # COMMENT DETECTION
+                    # =====================
 
                     if field == "comments":
 
-                        comment = (
-                            value.get(
-                                "text", ""
-                            )
+                        value = change.get(
+                            "value", {}
+                        )
+
+                        comment_text = (
+                            value.get("text", "")
                             .strip()
                             .lower()
+                        )
+
+                        username = (
+                            value.get(
+                                "from", {}
+                            ).get(
+                                "username",
+                                "unknown"
+                            )
                         )
 
                         user_id = (
                             value.get(
                                 "from", {}
-                            )
-                            .get("id")
+                            ).get("id")
                         )
 
                         media_id = (
                             value.get(
                                 "media", {}
-                            )
-                            .get("id")
+                            ).get("id")
                         )
 
                         comment_id = (
@@ -316,13 +183,13 @@ def webhook():
                         )
 
                         print(
-                            "TEXT:",
-                            comment
+                            "USER:",
+                            username
                         )
 
                         print(
-                            "USER:",
-                            user_id
+                            "TEXT:",
+                            comment_text
                         )
 
                         print(
@@ -330,17 +197,18 @@ def webhook():
                             media_id
                         )
 
-                        # STOP BOT LOOP
-                        if (
-                            str(user_id)
-                            == MY_IG_ID
-                        ):
-                            continue
+                        # =====================
+                        # PREVENT SELF REPLY
+                        # =====================
 
-                        if (
-                            media_id
-                            in TRIGGERS
-                        ):
+                        if username.lower() == "aliveabhay":
+                            return "ok", 200
+
+                        # =====================
+                        # TRIGGER CHECK
+                        # =====================
+
+                        if media_id in TRIGGERS:
 
                             trigger = (
                                 TRIGGERS[
@@ -358,11 +226,11 @@ def webhook():
 
                             if (
                                 keyword
-                                in comment
+                                in comment_text
                             ):
 
-                                # PUBLIC REPLY
-                                random_reply = (
+                                # Public Reply
+                                reply_message = (
                                     random.choice(
                                         COMMENT_REPLIES
                                     )
@@ -370,45 +238,63 @@ def webhook():
 
                                 reply_to_comment(
                                     comment_id,
-                                    random_reply
+                                    reply_message
                                 )
 
-                                # SEND BUTTON DM
-                                if user_id:
+                                # Save Logs
+                                save_log({
+                                    "username":
+                                    username,
 
-                                    send_dm_button(
-                                        user_id
-                                    )
+                                    "user_id":
+                                    user_id,
 
-                    # ===================================
-                    # MESSAGE EVENT
-                    # ===================================
+                                    "comment":
+                                    comment_text,
+
+                                    "media_id":
+                                    media_id,
+
+                                    "comment_id":
+                                    comment_id
+                                })
+
+                                print(
+                                    "META AUTOMATION "
+                                    "WILL HANDLE DM"
+                                )
+
+                    # =====================
+                    # MESSAGE DETECTION
+                    # =====================
 
                     elif field == "messages":
 
-                        sender_id = (
-                            value.get(
-                                "sender", {}
-                            )
-                            .get("id")
+                        value = change.get(
+                            "value", {}
                         )
 
-                        message = (
-                            value.get(
-                                "message", {}
-                            )
+                        sender = value.get(
+                            "sender", {}
+                        )
+
+                        message = value.get(
+                            "message", {}
                         )
 
                         text = (
                             message.get(
                                 "text", ""
                             )
-                            .strip()
-                            .lower()
                         )
 
                         print(
-                            "\n===== DM ====="
+                            "\n===== MESSAGE ====="
+                        )
+
+                        print(
+                            "FROM:",
+                            sender.get("id")
                         )
 
                         print(
@@ -416,29 +302,29 @@ def webhook():
                             text
                         )
 
-                        # USER CLICKED BUTTON
-                        # -> SEND LINK
-                        if text == "send link":
-
-                            send_final_link(
-                                sender_id,
-                                "https://yourwebsite.com"
-                            )
-
     except Exception as e:
 
-        print(
-            "\n===== ERROR ====="
-        )
-
-        print(str(e))
+        print("\n===== ERROR =====")
+        print(e)
 
     return "ok", 200
 
 
-# ===================================
+# ==================================
+# HOME ROUTE
+# ==================================
+
+@app.route("/")
+def home():
+    return (
+        "Instagram Hybrid "
+        "Automation Running"
+    )
+
+
+# ==================================
 # RUN SERVER
-# ===================================
+# ==================================
 
 if __name__ == "__main__":
 
