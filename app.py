@@ -1,226 +1,178 @@
-from flask import Flask, request
-import requests
-import random
-import os
-import json
+from flask import (
+    Flask,
+    request
+)
+
+from config import (
+    VERIFY_TOKEN,
+    MY_USERNAME
+)
+
+from database import (
+    load_automations,
+    save_comment_log
+)
+
+from automation import (
+    reply_to_comment
+)
 
 app = Flask(__name__)
 
-# ==================================
-# CONFIG
-# ==================================
+# ======================
+# MEMORY ROUTING
+# ======================
 
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
-PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
+USER_CONTEXT = {}
 
-GRAPH_API_VERSION = "v25.0"
+# ======================
+# WEBHOOK VERIFY
+# ======================
 
-# ==================================
-# REEL / POST SETTINGS
-# ==================================
-
-TRIGGERS = {
-    "17878276398591244": {
-        "keyword": "link",
-        "public_reply": "Link sent 📩 Check your DM"
-    }
-}
-
-# ==================================
-# RANDOM PUBLIC REPLIES
-# ==================================
-
-COMMENT_REPLIES = [
-    "Link sent 📩 Check your DM",
-    "Check your inbox 📩",
-    "Sent in DM 🚀",
-    "Done ✅ Check DM"
-]
-
-# ==================================
-# WEBHOOK VERIFICATION
-# ==================================
-
-@app.route("/webhook", methods=["GET"])
+@app.route(
+    "/webhook",
+    methods=["GET"]
+)
 def verify():
 
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
+    token = request.args.get(
+        "hub.verify_token"
+    )
 
-    print("VERIFY TOKEN FROM META:", token)
+    challenge = request.args.get(
+        "hub.challenge"
+    )
 
     if token == VERIFY_TOKEN:
         return challenge, 200
 
-    return "verification failed", 403
-
-
-# ==================================
-# REPLY TO COMMENT
-# ==================================
-
-def reply_to_comment(comment_id, message):
-
-    url = (
-        f"https://graph.facebook.com/"
-        f"{GRAPH_API_VERSION}/"
-        f"{comment_id}/replies"
+    return (
+        "verification failed",
+        403
     )
 
-    params = {
-        "access_token": PAGE_ACCESS_TOKEN,
-        "message": message
-    }
-
-    try:
-
-        response = requests.post(
-            url,
-            params=params
-        )
-
-        print("\n===== COMMENT REPLY =====")
-        print(response.status_code)
-        print(response.text)
-
-    except Exception as e:
-        print("COMMENT REPLY ERROR:", e)
-
-
-# ==================================
-# LOG USER (OPTIONAL)
-# ==================================
-
-def save_log(data):
-
-    try:
-
-        with open(
-            "comment_logs.txt",
-            "a",
-            encoding="utf-8"
-        ) as f:
-
-            f.write(
-                json.dumps(
-                    data,
-                    ensure_ascii=False
-                )
-                + "\n"
-            )
-
-    except Exception as e:
-        print("LOG ERROR:", e)
-
-
-# ==================================
+# ======================
 # WEBHOOK RECEIVER
-# ==================================
+# ======================
 
-@app.route("/webhook", methods=["POST"])
+@app.route(
+    "/webhook",
+    methods=["POST"]
+)
 def webhook():
 
     data = request.json
 
-    print("\n===== WEBHOOK =====")
     print(data)
+
+    automations = (
+        load_automations()
+    )
 
     try:
 
-        if data.get("object") == "instagram":
+        # ==================
+        # COMMENT DETECTION
+        # ==================
 
-            for entry in data.get("entry", []):
+        if (
+            data.get("object")
+            == "instagram"
+        ):
+
+            for entry in data.get(
+                "entry",
+                []
+            ):
 
                 for change in entry.get(
-                    "changes", []
+                    "changes",
+                    []
                 ):
 
-                    field = change.get("field")
+                    field = (
+                        change.get(
+                            "field"
+                        )
+                    )
 
-                    # =====================
-                    # COMMENT DETECTION
-                    # =====================
+                    # ----------------
+                    # COMMENTS
+                    # ----------------
 
                     if field == "comments":
 
-                        value = change.get(
-                            "value", {}
-                        )
-
-                        comment_text = (
-                            value.get("text", "")
-                            .strip()
-                            .lower()
+                        value = (
+                            change.get(
+                                "value",
+                                {}
+                            )
                         )
 
                         username = (
                             value.get(
-                                "from", {}
+                                "from",
+                                {}
                             ).get(
                                 "username",
-                                "unknown"
+                                ""
                             )
                         )
 
-                        user_id = (
+                        # avoid bot loop
+                        if (
+                            username.lower()
+                            == MY_USERNAME
+                        ):
+                            continue
+
+                        media_id = str(
                             value.get(
-                                "from", {}
+                                "media",
+                                {}
                             ).get("id")
                         )
 
-                        media_id = (
+                        comment_text = (
                             value.get(
-                                "media", {}
-                            ).get("id")
+                                "text",
+                                ""
+                            )
+                            .strip()
+                            .lower()
                         )
 
                         comment_id = (
                             value.get("id")
                         )
 
-                        print(
-                            "\n===== COMMENT ====="
+                        user_id = (
+                            value.get(
+                                "from",
+                                {}
+                            ).get("id")
                         )
 
                         print(
-                            "USER:",
-                            username
-                        )
-
-                        print(
-                            "TEXT:",
+                            "COMMENT:",
                             comment_text
                         )
 
-                        print(
-                            "MEDIA:",
+                        if (
                             media_id
-                        )
+                            in automations
+                        ):
 
-                        # =====================
-                        # PREVENT SELF REPLY
-                        # =====================
-
-                        if username.lower() == "aliveabhay":
-                            return "ok", 200
-
-                        # =====================
-                        # TRIGGER CHECK
-                        # =====================
-
-                        if media_id in TRIGGERS:
-
-                            trigger = (
-                                TRIGGERS[
+                            config = (
+                                automations[
                                     media_id
                                 ]
                             )
 
                             keyword = (
-                                trigger[
+                                config[
                                     "keyword"
                                 ]
-                                .strip()
                                 .lower()
                             )
 
@@ -229,113 +181,133 @@ def webhook():
                                 in comment_text
                             ):
 
-                                # Public Reply
-                                reply_message = (
-                                    random.choice(
-                                        COMMENT_REPLIES
-                                    )
-                                )
-
+                                # Public reply
                                 reply_to_comment(
                                     comment_id,
-                                    reply_message
+                                    config[
+                                        "public_reply"
+                                    ]
                                 )
 
-                                # Save Logs
-                                save_log({
-                                    "username":
-                                    username,
+                                # Save context
+                                USER_CONTEXT[
+                                    str(user_id)
+                                ] = {
+                                    "media_id":
+                                    media_id,
 
-                                    "user_id":
-                                    user_id,
+                                    "final_link":
+                                    config[
+                                        "final_link"
+                                    ]
+                                }
+
+                                # Log
+                                save_comment_log({
+                                    "user":
+                                    username,
 
                                     "comment":
                                     comment_text,
 
                                     "media_id":
-                                    media_id,
-
-                                    "comment_id":
-                                    comment_id
+                                    media_id
                                 })
 
                                 print(
-                                    "META AUTOMATION "
-                                    "WILL HANDLE DM"
+                                    "META DM "
+                                    "AUTOMATION "
+                                    "WILL HANDLE"
                                 )
 
-                    # =====================
-                    # MESSAGE DETECTION
-                    # =====================
+                    # ----------------
+                    # MESSAGE EVENTS
+                    # ----------------
 
-                    elif field == "messages":
+                    elif (
+                        field
+                        == "messages"
+                    ):
 
-                        value = change.get(
-                            "value", {}
+                        value = (
+                            change.get(
+                                "value",
+                                {}
+                            )
                         )
 
-                        sender = value.get(
-                            "sender", {}
+                        sender_id = str(
+                            value.get(
+                                "sender",
+                                {}
+                            ).get("id")
                         )
 
-                        message = value.get(
-                            "message", {}
+                        message = (
+                            value.get(
+                                "message",
+                                {}
+                            )
                         )
 
                         text = (
                             message.get(
-                                "text", ""
+                                "text",
+                                ""
                             )
+                            .strip()
+                            .lower()
                         )
 
                         print(
-                            "\n===== MESSAGE ====="
-                        )
-
-                        print(
-                            "FROM:",
-                            sender.get("id")
-                        )
-
-                        print(
-                            "TEXT:",
+                            "MESSAGE:",
                             text
                         )
 
+                        # user clicked
+                        # meta button
+
+                        if (
+                            sender_id
+                            in USER_CONTEXT
+                        ):
+
+                            user_data = (
+                                USER_CONTEXT[
+                                    sender_id
+                                ]
+                            )
+
+                            final_link = (
+                                user_data[
+                                    "final_link"
+                                ]
+                            )
+
+                            print(
+                                "SEND:",
+                                final_link
+                            )
+
+                            # OPTIONAL:
+                            # call Graph API
+                            # send message
+
     except Exception as e:
 
-        print("\n===== ERROR =====")
         print(e)
 
     return "ok", 200
 
-
-# ==================================
-# HOME ROUTE
-# ==================================
-
 @app.route("/")
 def home():
     return (
-        "Instagram Hybrid "
-        "Automation Running"
+        "Hybrid Automation Running"
     )
-
-
-# ==================================
-# RUN SERVER
-# ==================================
 
 if __name__ == "__main__":
 
-    port = int(
-        os.environ.get(
-            "PORT",
-            10000
-        )
-    )
-
     app.run(
         host="0.0.0.0",
-        port=port
+        port=10000
     )
